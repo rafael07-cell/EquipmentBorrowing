@@ -9,7 +9,7 @@
 Deniel Bern M. Miasco
 Rafael Sofian O. Guipetacio
 
-**August 2026**
+
 
 ---
 
@@ -17,7 +17,7 @@ Rafael Sofian O. Guipetacio
 
 ## A. Actors
 
-**Actor: Student**
+**Student**
 
 The student expects the system to allow them to request available equipment, borrow equipment when the requirements are satisfied, and return borrowed equipment.
 
@@ -62,17 +62,17 @@ The student expects the system to allow them to request available equipment, bor
 **Student**
 1. Information it must contain: Id, Name, IsAllowedToBorrow.
 2. Rules or state it owns: Whether the student is currently eligible to borrow.
-3. Not its responsibility: Tracking which items it currently holds — that belongs to Borrowing.
+3. Not its responsibility: Tracking which items it currently holds that belongs to Borrowing.
 
 **Equipment**
 1. Information it must contain: Id, Name, IsAvailable.
 2. Rules or state it owns: Marking itself as borrowed or returned.
-3. Not its responsibility: Knowing who borrowed it — tracked separately via Borrowing.
+3. Not its responsibility: Knowing who borrowed it and tracking separately via Borrowing.
 
 **Borrowing**
 1. Information it must contain: Id, StudentId, EquipmentId, DateBorrowed, ExpectedReturnDate, Status.
 2. Rules or state it owns: Its own lifecycle transition from Active to Returned.
-3. Not its responsibility: Validating whether the student or equipment involved actually exist or are eligible — that belongs to the application service.
+3. Not its responsibility: Validating whether the student or equipment involved actually exist or are eligible that belongs to the application service.
 
 ---
 
@@ -190,7 +190,7 @@ public interface IBorrowingRepository
 }
 ```
 
-Each method exists because a specific application operation currently needs it — no methods were added speculatively.
+Each method exists because a specific application operation currently needs it.
 
 ---
 
