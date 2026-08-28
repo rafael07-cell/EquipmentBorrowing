@@ -5,7 +5,11 @@ namespace EquipmentBorrowing.Infrastructure.Repositories;
 
 public class InMemoryEquipmentRepository : IEquipmentRepository
 {
-    private readonly List<Equipment> _equipment = new();
+    private readonly List<Equipment> _equipment = new()
+{
+    new Equipment(1, "Digital Multimeter", isAvailable: true),
+    new Equipment(2, "Oscilloscope", isAvailable: false)
+};
 
     public void Add(Equipment equipment) => _equipment.Add(equipment);
 
