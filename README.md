@@ -19,8 +19,6 @@ Rafael Sofian O. Guipetacio
 
 **Actor: Student**
 
-**What the actor expects the system to do:**
-
 The student expects the system to allow them to request available equipment, borrow equipment when the requirements are satisfied, and return borrowed equipment.
 
 ---
@@ -309,23 +307,23 @@ Domain depends on nothing. Application depends only on Domain. Infrastructure de
 
 **1. Why should the application service depend on a repository interface instead of directly depending on a database implementation?**
 
-Depending on an interface means `BorrowEquipmentService` only knows what operations are available, not how they are carried out. This allowed the service to be fully tested using in-memory repositories with zero knowledge that a real database doesn't exist yet. A concrete database dependency would require changing the service itself to swap storage technology; an interface allows a new implementation to be added without touching the service.
+So the the BorrowEquipmentService will depend on what is need not on how it will be fulfilled. That separation allows you to run, build and test the entire borrowing workflow without a database ever existing.
 
 **2. Which parts of your current solution could remain unchanged if SQLite were added later?**
 
-`EquipmentBorrowing.Domain` and `EquipmentBorrowing.Application` would remain completely unchanged, since neither depends on how data is stored. Only `EquipmentBorrowing.Infrastructure` would need new classes, and `Program.cs` would need a one-line change to construct them instead of the in-memory repositories.
+EquipmentBorrowing.Domain and EquipmentBorrowing.Application would remain completely unchanged because both of them are not relying on database to store data.
 
 **3. Which project would eventually contain Avalonia Views?**
 
-A new UI project (replacing `EquipmentBorrowing.ConsoleDemo`) would contain the Avalonia Views. It would reference Application to call `BorrowEquipmentService`, and reference Infrastructure only at startup to wire up dependencies — Domain, Application, and Infrastructure would not need to change.
+A new project, like EquipmentBorrowing.Desktop, would hold the Avalonia Views and it would replace ConsoleDemo's role as the entry point, referencing Application to call the business logic and Infrastructure only to wire up dependencies at startup, while Domain, Application, and Infrastructure themselves stay completely untouched.
 
 **4. Should an Avalonia button directly execute database queries? Why or why not?**
 
-No. A button's click handler should call into the Application layer instead of talking to a database directly. Otherwise, business rules such as eligibility and availability checks would be duplicated or skipped across different parts of the UI. Keeping the UI layer responsible only for displaying data and forwarding actions keeps validation logic in exactly one place.
+No. A button's click handler only role should be like the user do something and forward the intent to the layer that knows how to handle it. All the business roles that was in the BorrowEquipmentServices might get duplicated across every UI element that needs them or skipped entirely somewhere and the UI layer would become responsible for decisions it has no business making.
 
 **5. What part of your implementation represents the actual business operation requested by the actor?**
+The BorrowEquipmentService.ExecuteAsync(int studentId, int equipmentId, CancellationToken cancellationToken) represent the actual operation, checking eligibility, checking availability, enforcing the borrowing limit, and creating the borrowing records.
 
-`BorrowEquipmentService.ExecuteAsync(int studentId, int equipmentId, CancellationToken cancellationToken)` represents the actual business operation — checking eligibility, checking availability, enforcing the borrowing limit, and creating the borrowing record — independent of whether the request came from a console demo, a future Avalonia UI, or an automated test.
 
 ---
 
