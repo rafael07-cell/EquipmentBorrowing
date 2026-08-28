@@ -1,9 +1,17 @@
 ﻿using EquipmentBorrowing.Application.Services;
+using EquipmentBorrowing.Domain;
 using EquipmentBorrowing.Infrastructure.Repositories;
 
 var studentRepo = new InMemoryStudentRepository();
 var equipmentRepo = new InMemoryEquipmentRepository();
 var borrowingRepo = new InMemoryBorrowingRepository();
+
+// Seed sample data
+studentRepo.Add(new Student(1, "Juan Dela Cruz", isAllowedToBorrow: true));
+studentRepo.Add(new Student(2, "Maria Santos", isAllowedToBorrow: false)); // used for failure case
+
+equipmentRepo.Add(new Equipment(1, "Projector", isAvailable: true));
+equipmentRepo.Add(new Equipment(2, "Laptop", isAvailable: false)); // used for failure case
 
 var service = new BorrowEquipmentService(studentRepo, equipmentRepo, borrowingRepo);
 
