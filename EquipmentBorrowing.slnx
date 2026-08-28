@@ -1,4 +1,9 @@
 <Solution>
+  <Folder Name="/Screenshots/">
+    <File Path="../../../../../Pictures/Screenshots/01-dotnet-build.png.png" />
+    <File Path="../../../../../Pictures/Screenshots/02-borrowing-demo.png" />
+    <File Path="../../../../../Pictures/Screenshots/03-dotnet-test.png" />
+  </Folder>
   <Folder Name="/Solution Items/">
     <File Path=".gitignore" />
   </Folder>
