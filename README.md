@@ -7,166 +7,133 @@
 
 ---
 
-## 1. Overview
+## 1. Solution Structure
 
-EquipmentBorrowing is a console-based simulation of a campus equipment borrowing system, built using layered architecture in C#/.NET. The system has a single actor — the **Student** — and is fully automatic (no staff/admin actor, no manual approval step). The solution has no UI and no database; data is held in memory for the duration of the program.
+The solution is organized into four projects, each with a distinct, isolated responsibility:
 
----
+- **`EquipmentBorrowing.Domain`** — Contains the core concepts and rules that belong to the problem itself, independent of how the application runs or where data is stored: `Student`, `Equipment`, `Borrowing`, and `BorrowingStatus`. This project has no dependencies on any other project in the solution.
 
-## 2. Actor
+- **`EquipmentBorrowing.Application`** — Contains the operations (use cases) the system performs, and the abstractions (interfaces) it needs to perform them. `BorrowEquipmentService` lives here and coordinates domain objects and repository interfaces to execute the borrowing use case. This layer depends only on Domain — it does not know how data is actually stored.
 
-- **Student** — the only actor in the system. Students borrow equipment, return equipment, and check equipment availability. All borrowing rules (e.g., eligibility, availability checks) are enforced automatically by the system with no human intervention.
+- **`EquipmentBorrowing.Infrastructure`** — Contains the concrete, technical implementations of the abstractions defined in Application. For this activity, that means simple in-memory repositories (`InMemoryStudentRepository`, `InMemoryEquipmentRepository`, `InMemoryBorrowingRepository`) using C# `List<T>` collections instead of a real database.
 
----
+- **`EquipmentBorrowing.Tests`** — Contains the initial test project structure for testing Domain and Application behavior.
 
-## 3. Use Cases
-
-### 3.1 Borrow Equipment
-
-| Field | Description |
-|---|---|
-| **Preconditions** | Student exists and `IsAllowedToBorrow` is `true`; requested equipment exists and `IsAvailable` is `true`. |
-| **Main Action** | Student requests to borrow a specific piece of equipment. |
-| **Expected Result** | A new `Borrowing` record is created with `Status = Active`; the equipment's `IsAvailable` is set to `false`. |
-| **Possible Failure** | Student is not allowed to borrow, equipment is already borrowed/unavailable, or student/equipment does not exist. |
-
-### 3.2 Return Equipment
-
-| Field | Description |
-|---|---|
-| **Preconditions** | An active `Borrowing` record exists linking the student and the equipment. |
-| **Main Action** | Student returns previously borrowed equipment. |
-| **Expected Result** | The `Borrowing` record's `Status` is set to `Returned`; the equipment's `IsAvailable` is set to `true`. |
-| **Possible Failure** | No matching active borrowing record found for that student/equipment pair. |
-
-### 3.3 Check Availability of Equipment
-
-| Field | Description |
-|---|---|
-| **Preconditions** | Requested equipment exists in the system. |
-| **Main Action** | Student checks whether a specific piece of equipment is currently available. |
-| **Expected Result** | System returns the equipment's current `IsAvailable` status. |
-| **Possible Failure** | Equipment ID does not exist in the system. |
+- **`EquipmentBorrowing.ConsoleDemo`** — The executable entry point (`Program.cs`). This is the composition root: the only place where concrete Infrastructure classes are actually instantiated and wired into the Application service.
 
 ---
 
-## 4. Domain Concepts
-
-| Concept | Data It Holds | Rules It Owns | Not Responsible For |
-|---|---|---|---|
-| **Student** | `Id`, `Name`, `IsAllowedToBorrow` | Whether the student is eligible to borrow at all. | Tracking which items it currently holds — that's the Borrowing record's job. |
-| **Equipment** | `Id`, `Name`, `IsAvailable` | Marking itself as borrowed/returned (`MarkBorrowed()`, `MarkReturned()`). | Knowing *who* borrowed it — that's tracked via `Borrowing`, not stored on Equipment. |
-| **Borrowing** | `Id`, `StudentId`, `EquipmentId`, `DateBorrowed`, `ExpectedReturnDate`, `Status` | Its own lifecycle transition from Active → Returned (`MarkReturned()`). | Validating whether the student/equipment involved actually exist — that's the repository/service layer's job. |
-
----
-
-## 5. Solution Structure
+## 2. Dependency Direction
 
 ```
-EquipmentBorrowing-shared/
-│
-├── EquipmentBorrowing.Domain/              → Core business entities, no dependencies
-│   ├── Student.cs
-│   ├── Equipment.cs
-│   ├── Borrowing.cs
-│   └── BorrowingStatus.cs
-│
-├── EquipmentBorrowing.Application/         → Business rules & contracts, depends on Domain
-│   └── Interfaces/
-│       ├── IStudentRepository.cs
-│       ├── IEquipmentRepository.cs
-│       └── IBorrowingRepository.cs
-│   (BorrowEquipmentService.cs — in progress)
-│
-├── EquipmentBorrowing.Infrastructure/      → Concrete implementations, depends on Application + Domain
-│   └── Repositories/
-│       ├── InMemoryStudentRepository.cs
-│       ├── InMemoryEquipmentRepository.cs
-│       └── InMemoryBorrowingRepository.cs
-│
-├── EquipmentBorrowing.Tests/                → Unit tests, depends on Domain + Application
-│
-├── EquipmentBorrowing.ConsoleDemo/          → Entry point, wires everything together (Program.cs)
-│
-└── EquipmentBorrowing.slnx
+        EquipmentBorrowing.ConsoleDemo
+        (executable / composition root)
+                    │
+                    ▼
+        EquipmentBorrowing.Application
+                    │
+                    ▼
+          EquipmentBorrowing.Domain
+                    ▲
+                    │
+        EquipmentBorrowing.Infrastructure
+
+
+   EquipmentBorrowing.Tests ──→ Domain
+   EquipmentBorrowing.Tests ──→ Application
 ```
 
-### 5.1 Dependency Direction
+**Explanation:**
 
-```
-   Domain
-     ↑
- Application
-     ↑
-Infrastructure
+- **Domain** depends on nothing. It is the innermost layer and has no knowledge of Application, Infrastructure, or how the program is run.
+- **Application** depends only on **Domain**. It defines *what* the system needs to do (via `BorrowEquipmentService`) and *what data operations it needs* (via `IStudentRepository`, `IEquipmentRepository`, `IBorrowingRepository`), without knowing how those operations are actually carried out.
+- **Infrastructure** depends on **Application** (to implement its interfaces) and **Domain** (to work with `Student`, `Equipment`, and `Borrowing` objects). Application, however, has no dependency on Infrastructure — it only knows the interfaces exist, not which class implements them.
+- **ConsoleDemo** is the only project that references all three layers, because it is responsible for constructing the concrete Infrastructure repositories and injecting them into the Application service (manual dependency injection, Part F).
+- **Tests** depends on Domain and Application, allowing tests to exercise business rules and service logic directly.
 
-Tests ──→ Domain
-Tests ──→ Application
-
-ConsoleDemo ──→ all layers (composition root)
-```
-
-The dependency arrows point **inward**, toward Domain. Domain has zero dependencies on any other project — it knows nothing about how data is stored or how business rules are orchestrated. Application depends only on Domain, defining *what* operations are needed (via interfaces) without knowing *how* they're implemented. Infrastructure depends on Application, providing the concrete "how" (in-memory storage, and later, potentially a real database) without Application ever needing to know Infrastructure exists. This is what allows the storage mechanism to be swapped later (e.g., in-memory → EF Core) without touching business logic.
+This arrangement means the storage mechanism (currently in-memory) can later be replaced with a real database implementation without requiring any changes to Domain or Application — only a new Infrastructure implementation and a one-line change in `Program.cs`.
 
 ---
 
-## 6. Use Case → Code Mapping
+## 3. Use Case Mapping
 
-| Use Case | Domain | Application | Infrastructure |
-|---|---|---|---|
-| Borrow Equipment | `Student.IsAllowedToBorrow`, `Equipment.MarkBorrowed()`, `new Borrowing(...)` | `IStudentRepository.GetByIdAsync`, `IEquipmentRepository.GetByIdAsync`, `IBorrowingRepository.CountActiveByStudentIdAsync`, `IBorrowingRepository.AddAsync` *(orchestrated in `BorrowEquipmentService`, in progress)* | `InMemoryStudentRepository`, `InMemoryEquipmentRepository`, `InMemoryBorrowingRepository` |
-| Return Equipment | `Equipment.MarkReturned()`, `Borrowing.MarkReturned()` | `IBorrowingRepository.GetActiveByStudentAndEquipmentAsync` *(orchestrated in service, in progress)* | `InMemoryBorrowingRepository` |
-| Check Availability | `Equipment.IsAvailable` | `IEquipmentRepository.GetByIdAsync` | `InMemoryEquipmentRepository` |
+**Actor:** Student
 
----
+**Use Case:** Borrow Equipment
 
-## 7. Repository Interfaces (Application Layer)
+**Application Service:** `BorrowEquipmentService.ExecuteAsync(int studentId, int equipmentId, CancellationToken cancellationToken)`
 
-```csharp
-public interface IStudentRepository
-{
-    Task<Student?> GetByIdAsync(int id, CancellationToken cancellationToken = default);
-}
+**Domain Objects Used:**
+- `Student` (checked via `IsAllowedToBorrow`)
+- `Equipment` (checked via `IsAvailable`, updated via `MarkBorrowed()`)
+- `Borrowing` (created upon successful validation)
 
-public interface IEquipmentRepository
-{
-    Task<Equipment?> GetByIdAsync(int id, CancellationToken cancellationToken = default);
-}
+**Repository Interfaces Used:**
+- `IStudentRepository.GetByIdAsync(int id, CancellationToken)`
+- `IEquipmentRepository.GetByIdAsync(int id, CancellationToken)`
+- `IBorrowingRepository.CountActiveByStudentIdAsync(int studentId, CancellationToken)`
+- `IBorrowingRepository.AddAsync(Borrowing borrowing, CancellationToken)`
 
-public interface IBorrowingRepository
-{
-    Task AddAsync(Borrowing borrowing, CancellationToken cancellationToken = default);
-    Task<int> CountActiveByStudentIdAsync(int studentId, CancellationToken cancellationToken = default);
-    Task<Borrowing?> GetActiveByStudentAndEquipmentAsync(int studentId, int equipmentId, CancellationToken cancellationToken = default);
-}
-```
+**Infrastructure Implementations Used:**
+- `InMemoryStudentRepository`
+- `InMemoryEquipmentRepository`
+- `InMemoryBorrowingRepository`
 
-## 8. In-Memory Repository Implementations (Infrastructure Layer)
+**Validation rules enforced by `BorrowEquipmentService`, in order:**
+1. Student exists (`GetByIdAsync` does not return null).
+2. Student is allowed to borrow (`IsAllowedToBorrow == true`).
+3. Equipment exists (`GetByIdAsync` does not return null).
+4. Equipment is currently available (`IsAvailable == true`).
+5. Student has not reached the maximum number of active borrowings (`CountActiveByStudentIdAsync` < `MaxActiveBorrowings`, set to 3).
+6. If all rules pass, a new `Borrowing` is created, the equipment is marked borrowed, and the record is persisted via `AddAsync`.
 
-Each interface above is implemented using a simple in-memory `List<T>`, simulating storage without a real database. Repositories start empty; sample data is seeded from `Program.cs` at demo runtime. `Task.FromResult(...)` / `Task.CompletedTask` are used to satisfy the async interface signatures since no real I/O is happening yet — this keeps the contract identical to what a future database-backed implementation (e.g., EF Core) would need, so the Application layer never has to change when storage does.
-
----
-
-## 9. Reflection Questions
-
-*(To be completed after all parts are done.)*
-
-1.
-2.
-3.
-4.
-5.
+This directly satisfies the six validation checks required by the lab specification (Part E).
 
 ---
 
-## 10. Status
+## 4. Reflection
 
-- [x] Part A — Analysis (Actors, Use Cases, Domain Concepts)
-- [x] Part B — Solution Scaffolding
-- [x] Domain Layer
-- [x] Part D — Repository Interfaces
-- [x] Part G — In-Memory Repository Implementations
-- [ ] Part E — BorrowEquipmentService
-- [ ] Part F — Manual Dependency Injection
-- [ ] Part H — Console Demo (success + failure case)
-- [ ] Part I — Final Reflection Questions
+**1. Why should the application service depend on a repository interface instead of directly depending on a database implementation?**
+
+Depending on an interface (`IStudentRepository`, `IEquipmentRepository`, `IBorrowingRepository`) instead of a concrete class means `BorrowEquipmentService` only knows *what* operations are available (e.g., "get a student by ID"), not *how* those operations are carried out. This is what allowed us to run and fully test the service using in-memory repositories with zero knowledge, on the Application side, that a database doesn't exist yet. If the service depended directly on a concrete database class, swapping storage technology later — or even just testing the service without a real database — would require changing the service itself. With the interface in place, we can add a `SqliteBorrowingRepository` later that implements the same interface, and `BorrowEquipmentService` would not need a single line changed.
+
+**2. Which parts of your current solution could remain unchanged if SQLite were added later?**
+
+`EquipmentBorrowing.Domain` and `EquipmentBorrowing.Application` would remain completely unchanged. The domain models (`Student`, `Equipment`, `Borrowing`, `BorrowingStatus`) describe the problem itself, not storage, so they don't need to know SQLite exists. `BorrowEquipmentService` and the repository interfaces would also stay untouched, since they were written against abstractions rather than the in-memory implementation. Only `EquipmentBorrowing.Infrastructure` would need new classes (e.g., `SqliteStudentRepository`), and `Program.cs` would need a one-line change to construct those new classes instead of the in-memory ones.
+
+**3. Which project would eventually contain Avalonia Views?**
+
+`EquipmentBorrowing.ConsoleDemo` would effectively be replaced by a new UI project (e.g., `EquipmentBorrowing.Desktop` or similar), which would contain the Avalonia Views. This project — like `ConsoleDemo` today — would sit at the outermost layer, referencing `Application` (and indirectly `Domain`) to call `BorrowEquipmentService`, and referencing `Infrastructure` only at startup to wire up the real dependencies. Neither `Domain`, `Application`, nor `Infrastructure` would need to change to support a new UI layer.
+
+**4. Should an Avalonia button directly execute database queries? Why or why not?**
+
+No. A button's click handler should call into the Application layer (e.g., invoke `BorrowEquipmentService.ExecuteAsync(...)`), not talk to a database directly. If UI code executed SQL or repository logic itself, the business rules (student eligibility, equipment availability, borrowing limits) would either be duplicated across every UI element that needs them, or skipped entirely in some parts of the interface. Keeping the UI layer only responsible for displaying data and forwarding user actions to the Application service ensures the validation rules exist in exactly one place, regardless of how many different UI screens eventually call the same use case.
+
+**5. What part of your implementation represents the actual business operation requested by the actor?**
+
+`BorrowEquipmentService.ExecuteAsync(int studentId, int equipmentId, CancellationToken cancellationToken)`, in the Application layer, represents the actual business operation. This is the single method that carries out everything the Student actor is really asking for when they "borrow equipment" — checking eligibility, checking availability, enforcing the borrowing limit, and creating the borrowing record — independent of whether that request came from a console demo, a future Avalonia UI, or an automated test.
+
+---
+
+## 5. Working Demonstration
+
+The console demo (`EquipmentBorrowing.ConsoleDemo/Program.cs`) seeds two students and two pieces of equipment, then executes three scenarios:
+
+1. **Successful case** — Student 1 (allowed to borrow) borrows Equipment 1 (available) → `Success: Borrowing #<id> created.`
+2. **Failure case** — Student 2 (`IsAllowedToBorrow = false`) attempts to borrow → `Failed: Student is not allowed to borrow.`
+3. **Failure case** — Student 1 attempts to borrow Equipment 2 (`IsAvailable = false`) → `Failed: Equipment is not available.`
+
+All three cases were run and verified via `dotnet run --project EquipmentBorrowing.ConsoleDemo`, confirming the full path from console input through `BorrowEquipmentService`, the repository interfaces, and the in-memory Infrastructure implementations.
+
+---
+
+## 6. Git History
+
+Meaningful commits reflecting incremental development (see repository commit history for full detail), including:
+- Initial solution structure
+- Add domain models
+- Add repository interfaces
+- Implement borrowing service
+- Add in-memory repository implementations
+- Add data seeding and verify console demo success/failure cases
+- Complete architecture documentation
