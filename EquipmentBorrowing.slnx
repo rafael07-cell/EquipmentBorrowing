@@ -1,15 +1,12 @@
 <Solution>
-  <Folder Name="/Screenshots/">
-    <File Path="Screenshots/01-dotnet-build.png" />
-    <File Path="Screenshots/02-borrowing-demo.png" />
-    <File Path="Screenshots/03-dotnet-test.png" />
+  <Folder Name="/src/">
+    <Project Path="src/EquipmentBorrowing.Application/EquipmentBorrowing.Application.csproj" />
+    <Project Path="src/EquipmentBorrowing.ConsoleDemo/EquipmentBorrowing.ConsoleDemo.csproj" />
+    <Project Path="src/EquipmentBorrowing.Domain/EquipmentBorrowing.Domain.csproj" />
+    <Project Path="src/EquipmentBorrowing.Infrastructure/EquipmentBorrowing.Infrastructure.csproj" />
   </Folder>
-  <Folder Name="/Solution Items/">
-    <File Path=".gitignore" />
+  <Folder Name="/tests/">
+    <Project Path="tests/EquipmentBorrowing.Tests/EquipmentBorrowing.Tests.csproj" />
   </Folder>
-  <Project Path="EquipmentBorrowing.Application/EquipmentBorrowing.Application.csproj" />
-  <Project Path="EquipmentBorrowing.ConsoleDemo/EquipmentBorrowing.ConsoleDemo.csproj" />
-  <Project Path="EquipmentBorrowing.Domain/EquipmentBorrowing.Domain.csproj" />
-  <Project Path="EquipmentBorrowing.Infrastructure/EquipmentBorrowing.Infrastructure.csproj" />
-  <Project Path="EquipmentBorrowing.Tests/EquipmentBorrowing.Tests.csproj" />
+  <Project Path="../../../../../../Documents/3rd Year BSIT/First Semester/Desktop App Development/Laboratory Activities/EquipmentBorrowing/EquipmentBorrowing.Desktop/EquipmentBorrowing.Desktop.csproj" />
 </Solution>
