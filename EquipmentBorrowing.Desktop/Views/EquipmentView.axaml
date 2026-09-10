@@ -1,0 +1,40 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:vm="using:EquipmentBorrowing.Desktop.ViewModels"
+             x:Class="EquipmentBorrowing.Desktop.Views.EquipmentView"
+             x:DataType="vm:EquipmentViewModel">
+  <Grid RowDefinitions="Auto,*,Auto,Auto" Margin="16" RowSpacing="8">
+
+    <TextBlock Grid.Row="0" Classes="heading" Text="Equipment" />
+
+    <ListBox Grid.Row="1" ItemsSource="{Binding EquipmentList}"
+             SelectedItem="{Binding SelectedEquipment}">
+      <ListBox.ItemTemplate>
+        <DataTemplate>
+          <Border Classes="card">
+            <StackPanel Orientation="Horizontal" Spacing="12">
+              <TextBlock Text="{Binding Id, StringFormat='#{0}'}" Width="40" />
+              <TextBlock Text="{Binding Name}" Width="180" FontWeight="SemiBold" />
+              <TextBlock Text="{Binding IsAvailable, StringFormat='Available: {0}'}" />
+            </StackPanel>
+          </Border>
+        </DataTemplate>
+      </ListBox.ItemTemplate>
+    </ListBox>
+
+    <Grid Grid.Row="2" ColumnDefinitions="*,*,*" ColumnSpacing="8">
+      <ComboBox Grid.Column="0" ItemsSource="{Binding Students}"
+                SelectedItem="{Binding SelectedStudent}"
+                PlaceholderText="Select student">
+        <ComboBox.ItemTemplate>
+          <DataTemplate><TextBlock Text="{Binding Name}" /></DataTemplate>
+        </ComboBox.ItemTemplate>
+      </ComboBox>
+      <DatePicker Grid.Column="1" SelectedDate="{Binding ExpectedReturnDate}" />
+      <Button Grid.Column="2" Classes="primary" Content="Borrow Equipment"
+              Command="{Binding BorrowCommand}" HorizontalAlignment="Stretch" />
+    </Grid>
+
+    <TextBlock Grid.Row="3" Classes="status" Text="{Binding StatusMessage}" />
+  </Grid>
+</UserControl>
