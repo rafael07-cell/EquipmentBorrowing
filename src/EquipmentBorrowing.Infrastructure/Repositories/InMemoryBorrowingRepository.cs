@@ -19,6 +19,13 @@ public class InMemoryBorrowingRepository : IBorrowingRepository
         return Task.FromResult(count);
     }
 
+    public Task<Borrowing?> GetByIdAsync(int id, CancellationToken cancellationToken = default)
+    => Task.FromResult(_borrowings.FirstOrDefault(b => b.Id == id));
+
+    public Task<IReadOnlyList<Borrowing>> GetActiveAsync(CancellationToken cancellationToken = default)
+        => Task.FromResult((IReadOnlyList<Borrowing>)_borrowings
+            .Where(b => b.Status == BorrowingStatus.Active).ToList());
+
     public Task<Borrowing?> GetActiveByStudentAndEquipmentAsync(
         int studentId,
         int equipmentId,

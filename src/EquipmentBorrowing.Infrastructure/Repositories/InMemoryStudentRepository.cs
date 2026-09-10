@@ -5,6 +5,9 @@ namespace EquipmentBorrowing.Infrastructure.Repositories;
 
 public class InMemoryStudentRepository : IStudentRepository
 {
+    public Task<IReadOnlyList<Student>> GetAllAsync(CancellationToken cancellationToken = default)
+    => Task.FromResult((IReadOnlyList<Student>)_students.ToList());
+
     private readonly List<Student> _students = new()
 {
     new Student(1, "Juan Dela Cruz", isAllowedToBorrow: true),

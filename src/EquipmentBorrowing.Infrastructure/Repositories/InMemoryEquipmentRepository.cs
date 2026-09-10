@@ -5,6 +5,8 @@ namespace EquipmentBorrowing.Infrastructure.Repositories;
 
 public class InMemoryEquipmentRepository : IEquipmentRepository
 {
+    public Task<IReadOnlyList<Equipment>> GetAllAsync(CancellationToken cancellationToken = default)
+    => Task.FromResult((IReadOnlyList<Equipment>)_equipment.ToList());
     private readonly List<Equipment> _equipment = new()
 {
     new Equipment(1, "Digital Multimeter", isAvailable: true),
