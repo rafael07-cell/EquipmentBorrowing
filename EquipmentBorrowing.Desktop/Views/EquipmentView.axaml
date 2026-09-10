@@ -22,18 +22,21 @@
       </ListBox.ItemTemplate>
     </ListBox>
 
-    <Grid Grid.Row="2" ColumnDefinitions="*,*,*" ColumnSpacing="8">
-      <ComboBox Grid.Column="0" ItemsSource="{Binding Students}"
-                SelectedItem="{Binding SelectedStudent}"
-                PlaceholderText="Select student">
-        <ComboBox.ItemTemplate>
-          <DataTemplate><TextBlock Text="{Binding Name}" /></DataTemplate>
-        </ComboBox.ItemTemplate>
-      </ComboBox>
-      <DatePicker Grid.Column="1" SelectedDate="{Binding ExpectedReturnDate}" />
-      <Button Grid.Column="2" Classes="primary" Content="Borrow Equipment"
-              Command="{Binding BorrowCommand}" HorizontalAlignment="Stretch" />
-    </Grid>
+	  <Grid Grid.Row="2" ColumnSpacing="8">
+		  <Grid.ColumnDefinitions>
+			  <ColumnDefinition Width="*" MinWidth="120" />
+			  <ColumnDefinition Width="Auto" />
+			  <ColumnDefinition Width="*" MinWidth="140" />
+		  </Grid.ColumnDefinitions>
+
+		  <ComboBox Grid.Column="0" ItemsSource="{Binding Students}"
+					SelectedItem="{Binding SelectedStudent}"
+					PlaceholderText="Select student"
+					HorizontalAlignment="Stretch" />
+		  <DatePicker Grid.Column="1" SelectedDate="{Binding ExpectedReturnDate}" />
+		  <Button Grid.Column="2" Classes="primary" Content="Borrow Equipment"
+				  Command="{Binding BorrowCommand}" HorizontalAlignment="Stretch" />
+	  </Grid>
 
     <TextBlock Grid.Row="3" Classes="status" Text="{Binding StatusMessage}" />
   </Grid>
