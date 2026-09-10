@@ -10,8 +10,8 @@ public class InMemoryStudentRepository : IStudentRepository
 
     private readonly List<Student> _students = new()
 {
-    new Student(1, "Juan Dela Cruz", isAllowedToBorrow: true),
-    new Student(2, "Maria Santos", isAllowedToBorrow: false)
+    new Student(1, "Bern Nabuntoran", isAllowedToBorrow: true),
+    new Student(2, "Rafael Tulfo", isAllowedToBorrow: false)
 };
 
     public void Add(Student student) => _students.Add(student);

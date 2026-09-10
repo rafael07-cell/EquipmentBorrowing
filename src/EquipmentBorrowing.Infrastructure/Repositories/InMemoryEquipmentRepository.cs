@@ -9,8 +9,8 @@ public class InMemoryEquipmentRepository : IEquipmentRepository
     => Task.FromResult((IReadOnlyList<Equipment>)_equipment.ToList());
     private readonly List<Equipment> _equipment = new()
 {
-    new Equipment(1, "Digital Multimeter", isAvailable: true),
-    new Equipment(2, "Oscilloscope", isAvailable: false)
+    new Equipment(1, "Python Programming", isAvailable: true),
+    new Equipment(2, "Romeo and Juliet", isAvailable: false)
 };
 
     public void Add(Equipment equipment) => _equipment.Add(equipment);
