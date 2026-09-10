@@ -1,4 +1,4 @@
-<Solution>
+﻿<Solution>
   <Folder Name="/src/">
     <Project Path="src/EquipmentBorrowing.Application/EquipmentBorrowing.Application.csproj" />
     <Project Path="src/EquipmentBorrowing.ConsoleDemo/EquipmentBorrowing.ConsoleDemo.csproj" />
@@ -8,5 +8,5 @@
   <Folder Name="/tests/">
     <Project Path="tests/EquipmentBorrowing.Tests/EquipmentBorrowing.Tests.csproj" />
   </Folder>
-  <Project Path="../../../../../../Documents/3rd Year BSIT/First Semester/Desktop App Development/Laboratory Activities/EquipmentBorrowing/EquipmentBorrowing.Desktop/EquipmentBorrowing.Desktop.csproj" />
+  <Project Path="EquipmentBorrowing.Desktop/EquipmentBorrowing.Desktop.csproj" />
 </Solution>

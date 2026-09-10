@@ -15,9 +15,9 @@
   </ItemGroup>
 
   <ItemGroup>
-    <ProjectReference Include="..\EquipmentBorrowing.Application\EquipmentBorrowing.Application.csproj" />
-    <ProjectReference Include="..\EquipmentBorrowing.Domain\EquipmentBorrowing.Domain.csproj" />
-    <ProjectReference Include="..\EquipmentBorrowing.Infrastructure\EquipmentBorrowing.Infrastructure.csproj" />
+    <ProjectReference Include="..\..\src\EquipmentBorrowing.Domain\EquipmentBorrowing.Domain.csproj" />
+    <ProjectReference Include="..\..\src\EquipmentBorrowing.Application\EquipmentBorrowing.Application.csproj" />
+    <ProjectReference Include="..\..\src\EquipmentBorrowing.Infrastructure\EquipmentBorrowing.Infrastructure.csproj" />
   </ItemGroup>
 
   <ItemGroup>
