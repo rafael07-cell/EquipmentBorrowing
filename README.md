@@ -421,7 +421,7 @@ Infrastructure Implementation
 4. If presentation validation passes, the ViewModel calls `BorrowEquipmentService.ExecuteAsync(studentId, equipmentId)`.
 5. The service performs the actual business validation from Lab 1 (student exists, student is allowed to borrow, equipment exists, equipment is available, active borrowing limit) using the injected repository interfaces, and either creates a new `Borrowing` or returns a failure result with a message.
 6. The result flows back to the ViewModel, which sets `StatusMessage` to either a success or failure message.
-7. The ViewModel reloads equipment data (`LoadAsync()`), which refreshes the `ObservableCollection` bound to the Equipment list — so a successfully borrowed item is immediately shown as unavailable.
+7. The ViewModel reloads equipment data (`LoadAsync()`), which refreshes the `ObservableCollection` bound to the Equipment list, so a successfully borrowed item is immediately shown as unavailable.
 8. Data binding updates the View automatically; no manual UI refresh code is written anywhere.
 
 ---
@@ -447,23 +447,23 @@ The View is only responsible for displaying information and collecting user inpu
 
 **2. Why should business rules not be implemented in the ViewModel?**
 
-A business rule implemented in the ViewModel only protects that one screen. If another part of the application (or a future screen) needed to trigger the same operation, the rule would either need to be copied or would be skipped. Keeping rules in the Application/Domain layer means there is exactly one place where "can this student borrow this equipment" is decided, and every caller — UI or otherwise — gets the same answer.
+A business rule implemented in the ViewModel only protects that one screen. If another part of the application (or a future screen) needed to trigger the same operation, the rule would either need to be copied or would be skipped. Keeping rules in the Application/Domain layer means there is exactly one place where "can this student borrow this equipment" is decided, and every caller UI or otherwise it gets the same answer.
 
 **3. What is the responsibility of the ViewModel?**
 
-The ViewModel holds presentation state (selected items, loaded lists, status messages), exposes commands that respond to user actions, performs presentation-level validation (has something been selected, is a required field filled), and translates a user action into a call to the appropriate Application service. It does not decide whether an operation is allowed to succeed — it only reports the outcome the service returns.
+The ViewModel holds presentation state (selected items, loaded lists, status messages), exposes commands that respond to user actions, performs presentation-level validation (has something been selected, is a required field filled), and translates a user action into a call to the appropriate Application service. It does not decide whether an operation is allowed to succeed, it only reports the outcome the service returns.
 
 **4. Why can the existing Application layer work without knowing that Avalonia is being used?**
 
-`BorrowEquipmentService` and `ReturnEquipmentService` depend only on repository interfaces and Domain objects, both of which existed before Avalonia was ever introduced. Avalonia is layered on top through the Desktop project, which depends on Application — not the other way around. Because the dependency only points one direction, the Application layer has no reference to, and no awareness of, the UI framework calling it.
+`BorrowEquipmentService` and `ReturnEquipmentService` depend only on repository interfaces and Domain objects, both of which existed before Avalonia was ever introduced. Avalonia is layered on top through the Desktop project, which depends on Application and not the other way around. Because the dependency only points one direction, the Application layer has no reference to, and no awareness of, the UI framework calling it.
 
 **5. What advantage is gained from registering dependencies in one composition point?**
 
-Every dependency — which repository implementation to use, which services exist, how ViewModels are constructed — is defined in exactly one place (`App.axaml.cs`). If an implementation needs to change (for example, swapping an in-memory repository for a different one), only that one registration needs to be updated. Nothing else in the application needs to know or care how its dependencies were constructed.
+Every dependency which repository implementation to use, which services exist, how ViewModels are constructed is defined in exactly one place (`App.axaml.cs`). If an implementation needs to change (for example, swapping an in-memory repository for a different one), only that one registration needs to be updated. Nothing else in the application needs to know or care how its dependencies were constructed.
 
 **6. If the in-memory repository were replaced by SQLite later, which parts of the current interface should remain largely unchanged?**
 
-The Views, ViewModels, Application services, Domain models, and the repository interfaces themselves would all remain unchanged. Only the Infrastructure layer would change — new SQLite-backed repository classes would be written to implement the same `IStudentRepository`, `IEquipmentRepository`, and `IBorrowingRepository` interfaces, and the only other change needed would be updating the registrations in `App.axaml.cs` to point to the new classes instead of the in-memory ones.
+The Views, ViewModels, Application services, Domain models, and the repository interfaces themselves would all remain unchanged. Only the Infrastructure layer would change and new SQLite-backed repository classes would be written to implement the same `IStudentRepository`, `IEquipmentRepository`, and `IBorrowingRepository` interfaces, and the only other change needed would be updating the registrations in `App.axaml.cs` to point to the new classes instead of the in-memory ones.
 
 ---
 
