@@ -6,7 +6,7 @@
         x:DataType="vm:MainWindowViewModel"
         Title="Campus Equipment Borrowing System"
         Width="900" Height="600"
-		MinWidth ="800" MinHeight="500">
+		MinWidth ="850" MinHeight="500">
 
   <Grid RowDefinitions="Auto,*">
     <TextBlock Grid.Row="0" Classes="appTitle" Text="Campus Equipment Borrowing System" />
