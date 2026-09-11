@@ -15,7 +15,8 @@
             <StackPanel Orientation="Horizontal" Spacing="12">
               <TextBlock Text="{Binding Id, StringFormat='#{0}'}" Width="40" />
               <TextBlock Text="{Binding Name}" Width="180" FontWeight="SemiBold" />
-              <TextBlock Text="{Binding IsAvailable, StringFormat='Available: {0}'}" />
+              <TextBlock Text="Available" Foreground="Green" IsVisible="{Binding IsAvailable}" />
+<TextBlock Text="Unavailable" Foreground="IndianRed" IsVisible="{Binding !IsAvailable}" />
             </StackPanel>
           </Border>
         </DataTemplate>
@@ -30,9 +31,15 @@
 		  </Grid.ColumnDefinitions>
 
 		  <ComboBox Grid.Column="0" ItemsSource="{Binding Students}"
-					SelectedItem="{Binding SelectedStudent}"
-					PlaceholderText="Select student"
-					HorizontalAlignment="Stretch" />
+          SelectedItem="{Binding SelectedStudent}"
+          PlaceholderText="Select student"
+          HorizontalAlignment="Stretch">
+  <ComboBox.ItemTemplate>
+    <DataTemplate>
+      <TextBlock Text="{Binding Name}" />
+    </DataTemplate>
+  </ComboBox.ItemTemplate>
+</ComboBox>
 		  <DatePicker Grid.Column="1" SelectedDate="{Binding ExpectedReturnDate}" />
 		  <Button Grid.Column="2" Classes="primary" Content="Borrow Equipment"
 				  Command="{Binding BorrowCommand}" HorizontalAlignment="Stretch" />
