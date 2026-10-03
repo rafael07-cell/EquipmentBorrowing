@@ -1,16 +1,13 @@
 ﻿using Avalonia;
 using Avalonia.Controls.ApplicationLifetimes;
 using Avalonia.Markup.Xaml;
-using EquipmentBorrowing.Application.Interfaces;
 using EquipmentBorrowing.Application.Services;
 using EquipmentBorrowing.Desktop.ViewModels;
 using EquipmentBorrowing.Desktop.Views;
-using EquipmentBorrowing.Infrastructure.Persistence;
-using EquipmentBorrowing.Infrastructure.Repositories;
-using Microsoft.EntityFrameworkCore;
+using EquipmentBorrowing.Infrastructure;
 using Microsoft.Extensions.DependencyInjection;
 using System;
-
+using System.Threading.Tasks;
 
 namespace EquipmentBorrowing.Desktop;
 
@@ -27,15 +24,8 @@ public partial class App : Avalonia.Application
     {
         var services = new ServiceCollection();
 
-        // SQLite + EF Core
-        var connectionString = "Data Source=equipment_borrowing.db";
-
-        services.AddDbContext<EquipmentBorrowingDbContext>(options =>
-            options.UseSqlite(connectionString));
-
-        services.AddScoped<IStudentRepository, EfStudentRepository>();
-        services.AddScoped<IEquipmentRepository, EfEquipmentRepository>();
-        services.AddScoped<IBorrowingRepository, EfBorrowingRepository>();
+        // Persistence (SQLite + EF Core) is registered inside the Infrastructure layer.
+        services.AddPersistence();
 
         services.AddTransient<BorrowEquipmentService>();
         services.AddTransient<ReturnEquipmentService>();
@@ -45,6 +35,10 @@ public partial class App : Avalonia.Application
         services.AddSingleton<BorrowingsViewModel>();
 
         Services = services.BuildServiceProvider();
+
+        // Apply pending migrations and seed initial data (only if the database is empty).
+        // Runs before any ViewModel loads data.
+        Task.Run(() => Services.InitializeDatabaseAsync()).GetAwaiter().GetResult();
 
         if (ApplicationLifetime is IClassicDesktopStyleApplicationLifetime desktop)
         {
