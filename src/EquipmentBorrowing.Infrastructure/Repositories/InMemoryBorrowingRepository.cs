@@ -20,7 +20,7 @@ public class InMemoryBorrowingRepository : IBorrowingRepository
     }
 
     public Task<Borrowing?> GetByIdAsync(int id, CancellationToken cancellationToken = default)
-    => Task.FromResult(_borrowings.FirstOrDefault(b => b.Id == id));
+        => Task.FromResult(_borrowings.FirstOrDefault(b => b.Id == id));
 
     public Task<IReadOnlyList<Borrowing>> GetActiveAsync(CancellationToken cancellationToken = default)
         => Task.FromResult((IReadOnlyList<Borrowing>)_borrowings
@@ -38,4 +38,8 @@ public class InMemoryBorrowingRepository : IBorrowingRepository
 
         return Task.FromResult(borrowing);
     }
+
+    // Objects are shared by reference in memory, so there is nothing extra to save.
+    public Task UpdateAsync(Borrowing borrowing, CancellationToken cancellationToken = default)
+        => Task.CompletedTask;
 }

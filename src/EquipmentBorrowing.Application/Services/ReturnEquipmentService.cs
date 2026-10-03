@@ -32,6 +32,9 @@ public class ReturnEquipmentService
         borrowing.MarkReturned();
         equipment.MarkReturned();
 
+        await _borrowingRepository.UpdateAsync(borrowing, cancellationToken);
+        await _equipmentRepository.UpdateAsync(equipment, cancellationToken);
+
         return ReturnResult.Success(borrowing);
     }
 }

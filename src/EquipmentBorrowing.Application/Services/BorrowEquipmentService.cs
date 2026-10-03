@@ -42,13 +42,14 @@ public class BorrowEquipmentService
             return BorrowResult.Fail("Student has reached the maximum number of active borrowings.");
 
         var borrowing = new Borrowing(
-            id: new Random().Next(1000, 9999),
+            id: 0, // 0 lets the database generate the key
             studentId: studentId,
             equipmentId: equipmentId,
             dateBorrowed: DateTime.Now,
             expectedReturnDate: DateTime.Now.AddDays(7));
 
         equipment.MarkBorrowed();
+        await _equipmentRepository.UpdateAsync(equipment, cancellationToken);
         await _borrowingRepository.AddAsync(borrowing, cancellationToken);
 
         return BorrowResult.Success(borrowing);
