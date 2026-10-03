@@ -491,3 +491,32 @@ The Views, ViewModels, Application services, Domain models, and the repository i
 **Manual testing:** Borrow Equipment and Return Equipment were tested end-to-end through the Avalonia UI, including a handled business-rule failure (student not allowed to borrow) and a handled presentation-validation failure (no borrowing selected before returning).
 
 **Git history:** Repository contains incremental, meaningful commits reflecting development progression through Lab 2 — repository query methods, in-memory implementations, return service, dependency injection, equipment view model and view, borrowings view model and view, navigation layout, shared styles, and bug fixes discovered during manual testing.
+
+
+---
+
+# Laboratory Activity 3: From In-Memory Data to Persistent Storage
+
+## 1. Relational Database Design
+
+### Data Model Review
+
+| Question | Answer |
+|---|---|
+| Unique identifiers | `Id` on each of Student, Equipment and Borrowing |
+| Required | Student `Name`; Equipment `Name`; Borrowing `StudentId`, `EquipmentId`, `DateBorrowed`, `ExpectedReturnDate`, `Status` |
+| Optional | None |
+| Relationships | Student 1→* Borrowing, Equipment 1→* Borrowing |
+| Constrained values | `Status` (enum stored as text), name max lengths, foreign keys must reference existing rows |
+| Not duplicated | A borrowing stores only `StudentId` and `EquipmentId`, never the student's or equipment's details |
+
+### Database Diagram
+
+![Database Diagram](docs/database-diagram.png)
+
+### Tables, Keys and Constraints
+
+- **Students**: PK `Id`; `Name` required (max 100); `IsAllowedToBorrow` required.
+- **Equipment**: PK `Id`; `Name` required (max 100), indexed; `IsAvailable` required.
+- **Borrowings**: PK `Id`; FK `StudentId` → Students.Id; FK `EquipmentId` → Equipment.Id; `Status` stored as text; indexes on `StudentId`, `EquipmentId` and `Status`.
+- Foreign keys use `Restrict` delete behavior, so a student or equipment record cannot be deleted while borrowing history references it.
