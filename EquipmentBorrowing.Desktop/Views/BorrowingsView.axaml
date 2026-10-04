@@ -13,9 +13,9 @@
         <DataTemplate>
           <Border Classes="card">
             <StackPanel Orientation="Horizontal" Spacing="12">
-              <TextBlock Text="{Binding Id, StringFormat='Borrowing #{0}'}" Width="120" />
-              <TextBlock Text="{Binding StudentId, StringFormat='Student #{0}'}" Width="100" />
-              <TextBlock Text="{Binding EquipmentId, StringFormat='Equipment #{0}'}" Width="110" />
+              <TextBlock Text="{Binding BorrowingId, StringFormat='Borrowing #{0}'}" Width="110" />
+              <TextBlock Text="{Binding StudentName}" Width="140" FontWeight="SemiBold" />
+              <TextBlock Text="{Binding EquipmentName}" Width="190" />
               <TextBlock Text="{Binding ExpectedReturnDate, StringFormat='Due {0:d}'}" />
             </StackPanel>
           </Border>

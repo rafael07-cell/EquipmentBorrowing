@@ -2,7 +2,6 @@
 using CommunityToolkit.Mvvm.Input;
 using EquipmentBorrowing.Application.Interfaces;
 using EquipmentBorrowing.Application.Services;
-using EquipmentBorrowing.Domain;
 using System.Collections.ObjectModel;
 using System.Threading.Tasks;
 
@@ -10,29 +9,29 @@ namespace EquipmentBorrowing.Desktop.ViewModels;
 
 public partial class BorrowingsViewModel : ObservableObject
 {
-    private readonly IBorrowingRepository _borrowingRepository;
+    private readonly IBorrowingQueries _borrowingQueries;
     private readonly ReturnEquipmentService _returnEquipmentService;
 
-    public ObservableCollection<Borrowing> ActiveBorrowings { get; } = new();
+    public ObservableCollection<ActiveBorrowingDetails> ActiveBorrowings { get; } = new();
 
     [ObservableProperty]
-    private Borrowing? selectedBorrowing;
+    private ActiveBorrowingDetails? selectedBorrowing;
 
     [ObservableProperty]
     private string? statusMessage;
 
     public BorrowingsViewModel(
-        IBorrowingRepository borrowingRepository,
+        IBorrowingQueries borrowingQueries,
         ReturnEquipmentService returnEquipmentService)
     {
-        _borrowingRepository = borrowingRepository;
+        _borrowingQueries = borrowingQueries;
         _returnEquipmentService = returnEquipmentService;
     }
 
     public async Task LoadAsync()
     {
         ActiveBorrowings.Clear();
-        foreach (var b in await _borrowingRepository.GetActiveAsync())
+        foreach (var b in await _borrowingQueries.GetActiveWithDetailsAsync())
             ActiveBorrowings.Add(b);
     }
 
@@ -45,7 +44,7 @@ public partial class BorrowingsViewModel : ObservableObject
             return;
         }
 
-        var result = await _returnEquipmentService.ExecuteAsync(SelectedBorrowing.Id);
+        var result = await _returnEquipmentService.ExecuteAsync(SelectedBorrowing.BorrowingId);
 
         StatusMessage = result.IsSuccessful
             ? $"Borrowing #{result.Borrowing!.Id} returned successfully."
