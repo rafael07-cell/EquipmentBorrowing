@@ -547,7 +547,11 @@ About `AsNoTracking()`: I used it on read-only queries that are only for display
 
 I used a migration instead of letting EF create the tables on its own, so the schema is versioned like code. The initial migration is `InitialCreate` (in `Infrastructure/Migrations`), generated with `dotnet ef migrations add InitialCreate` using the Infrastructure project as the target and the Desktop project as the startup project.
 
-The app applies it on startup. `DbInitializer.InitializeAsync` calls `Database.MigrateAsync()`, which creates the database if it doesn't exist and applies only the pending migrations. It never drops or recreates an existing database, so the user's data survives restarts. After migrating, it seeds only if the tables are empty: 4 students (one not allowed to borrow), 5 books, and 1 active borrowing (Ana has Romeo and Juliet).
+The app applies it on startup. `DbInitializer.InitializeAsync` calls `Database.MigrateAsync()`, which creates the database if it doesn't exist and applies only the pending migrations. It never drops or recreates an existing database, so the user's data survives restarts.
+
+![Migration list](Screenshots/Laboratory_3_Screenshots/03-migration-list.png)
+
+After migrating, it seeds only if the tables are empty: 4 students (one not allowed to borrow), 5 books, and 1 active borrowing (Ana has Romeo and Juliet).
 
 ## 6. LINQ Queries and Generated SQL
 
@@ -588,7 +592,7 @@ ORDER BY "b"."DateBorrowed"
 
 What I noticed: EF only selected the 5 columns we put in the `select`, not whole rows. Our `Borrowing` has no navigation properties, so the explicit `join` is what makes the 2 `INNER JOIN`s. `Status` is compared to the text `'Active'` because we stored the enum as a string.
 
-![Generated SQL join](Screenshots/14-generated-sql-join.png)
+![Generated SQL join](Screenshots/Laboratory_3_Screenshots/12-generated-sql-join.png)
 
 **Query 2: Active borrowings only (filter)**
 
@@ -606,7 +610,7 @@ WHERE "b"."Status" = 'Active'
 
 What I noticed: the `Where` became a SQL `WHERE`, so the filtering happens inside the database and not in C# memory. That's the main reason to keep queries as `IQueryable` until the `ToListAsync()` call.
 
-![Generated SQL filter](Screenshots/15-generated-sql-filter.png)
+![Generated SQL filter](Screenshots/Laboratory_3_Screenshots/13-generated-sql-filter.png)
 
 ### Sample SQL queries
 
@@ -614,33 +618,33 @@ What I noticed: the `Where` became a SQL `WHERE`, so the filtering happens insid
 
 | Query | Screenshot |
 |---|---|
-| Retrieval: all equipment | ![Retrieval](Screenshots/16-query-retrieval.png) |
-| Filter: students allowed to borrow | ![Filter](Screenshots/17-query-filter.png) |
-| Join: active borrowings with details | ![Join](Screenshots/18-query-join.png) |
-| Aggregate: borrowings per student | ![Aggregate](Screenshots/19-query-aggregate.png) |
-| Update: block a student from borrowing | ![Update](Screenshots/20-query-update.png) |
+| Retrieval: all equipment | ![Retrieval](Screenshots/Laboratory_3_Screenshots/14-query-retrieval.png) |
+| Filter: students allowed to borrow | ![Filter](Screenshots/Laboratory_3_Screenshots/15-query-filter.png) |
+| Join: active borrowings with details | ![Join](Screenshots/Laboratory_3_Screenshots/16-query-join.png) |
+| Aggregate: borrowings per student | ![Aggregate](Screenshots/Laboratory_3_Screenshots/17-query-aggregate.png) |
+| Update: block a student from borrowing | ![Update](Screenshots/Laboratory_3_Screenshots/18-query-update.png) |
 
 ## 7. Persistence Demonstration
 
 To prove the data survives restarts, I ran this test with a fresh database:
 
-1. Launched the app and saw the 5 seeded books, with Romeo and Juliet unavailable. ![First launch](Screenshots/06-app-first-launch.png)
-2. Borrowed Python Programming as Ana Reyes. ![Borrow](Screenshots/07-borrow-success.png)
-3. Closed and reopened the app. Python Programming was still unavailable. ![Reopen](Screenshots/08-after-reopen-still-borrowed.png)
-4. Returned it from Active Borrowings. ![Return](Screenshots/09-return-success.png)
-5. Closed and reopened again. It showed as available. ![Reopen 2](Screenshots/10-after-reopen-still-returned.png)
+1. Launched the app and saw the 5 seeded books, with Romeo and Juliet unavailable. ![First launch](Screenshots/Laboratory_3_Screenshots/04-app-first-launch.png)
+2. Borrowed Python Programming as Ana Reyes. ![Borrow](Screenshots/Laboratory_3_Screenshots/05-borrow-success.png)
+3. Closed and reopened the app. Python Programming was still unavailable. ![Reopen](Screenshots/Laboratory_3_Screenshots/06-after-reopen-still-borrowed.png)
+4. Returned it from Active Borrowings. ![Return](Screenshots/Laboratory_3_Screenshots/07-return-success.png)
+5. Closed and reopened again. It showed as available. ![Reopen 2](Screenshots/Laboratory_3_Screenshots/08-after-reopen-still-returned.png)
 
 I also opened the `.db` file in DB Browser for SQLite to check the tables and rows directly.
 
-![Tables and indexes](Screenshots/04-db-tables.png)
+![Tables and indexes](Screenshots/Laboratory_3_Screenshots/01-db-tables.png)
 
-![Borrowings foreign keys](Screenshots/05-borrowings-foreign-keys.png)
+![Borrowings foreign keys](Screenshots/Laboratory_3_Screenshots/02-borrowings-foreign-keys.png)
 
-![Students](Screenshots/11-students-rows.png)
+![Students](Screenshots/Laboratory_3_Screenshots/09-students-rows.png)
 
-![Equipment](Screenshots/12-equipment-rows.png)
+![Equipment](Screenshots/Laboratory_3_Screenshots/10-equipment-rows.png)
 
-![Borrowings](Screenshots/13-borrowings-rows.png)
+![Borrowings](Screenshots/Laboratory_3_Screenshots/11-borrowings-rows.png)
 
 This works because the state lives in the `.db` file and not in the app's memory. When the app closes, the objects are gone, but the rows stay. On the next launch, `MigrateAsync()` finds the database already up to date and the seed is skipped since the tables aren't empty.
 
