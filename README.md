@@ -520,3 +520,161 @@ The Views, ViewModels, Application services, Domain models, and the repository i
 - **Equipment**: PK `Id`; `Name` required (max 100), indexed; `IsAvailable` required.
 - **Borrowings**: PK `Id`; FK `StudentId` → Students.Id; FK `EquipmentId` → Equipment.Id; `Status` stored as text; indexes on `StudentId`, `EquipmentId` and `Status`.
 - Foreign keys use `Restrict` delete behavior, so a student or equipment record cannot be deleted while borrowing history references it.
+
+
+## 2. EF Core and SQLite Setup
+
+I added two NuGet packages to the **Infrastructure** project only: `Microsoft.EntityFrameworkCore.Sqlite` (the SQLite provider) and `Microsoft.EntityFrameworkCore.Design` (needed for migrations). Domain and Application don't reference EF Core at all, so the business rules stay clean. I think this is the main point of the layered setup. If we swap SQLite for another database later, only Infrastructure changes.
+
+The database file is `equipmentborrowing.db`, saved in the user's local app data folder (`%LOCALAPPDATA%\EquipmentBorrowing`). I put it there instead of the repo so the `.db` file never gets pushed to GitHub, and so the app works no matter where the project is cloned.
+
+## 3. DbContext Responsibility
+
+`EquipmentBorrowingDbContext` is the bridge between our C# objects and the database tables. It has three `DbSet`s (`Students`, `Equipment`, `Borrowings`), and it tracks changes and saves them when we call `SaveChangesAsync()`.
+
+The table rules (keys, required fields, max lengths, indexes, foreign keys) are not inside the context. They're in three separate Fluent API config classes (`StudentConfiguration`, `EquipmentConfiguration`, `BorrowingConfiguration`), and the context loads them with `ApplyConfigurationsFromAssembly`. That way each table's rules sit in one place and the context stays short.
+
+I registered it with `AddDbContextFactory` instead of `AddDbContext`. The repositories are singletons in a desktop app that stays open for a while, and one long-lived context would keep stale data. With the factory, each repository method opens a fresh short-lived context, does its job, and disposes it. I think it's like opening a new counter ticket for every request instead of keeping one ticket open all day.
+
+## 4. Repository Transition (In-Memory to EF Core)
+
+The interfaces (`IStudentRepository`, `IEquipmentRepository`, `IBorrowingRepository`) stayed the same, so the services and ViewModels didn't need a rewrite. I added three EF versions: `EfStudentRepository`, `EfEquipmentRepository` and `EfBorrowingRepository`. In `App.axaml.cs`, the registration changed from the in-memory classes to `services.AddPersistence()`, which lives in Infrastructure.
+
+The one interface change was adding `UpdateAsync`. In memory, the services modify objects that are shared by reference, so changes just stick. With EF Core, each repository call uses its own short-lived context, so the object comes back detached. `UpdateAsync` re-attaches it and saves the change. The in-memory repos got an empty `UpdateAsync` so they still satisfy the interface. They're still used by the ConsoleDemo and the unit tests, which is why the tests don't need a real database.
+
+About `AsNoTracking()`: I used it on read-only queries that are only for display (the equipment list, the active borrowings list, student reads, the count query and the join query), since nothing gets modified and EF doesn't need to track them. I left it off `GetByIdAsync` for Equipment and Borrowing because those entities get modified right after (`MarkBorrowed` and `MarkReturned`).
+
+## 5. Migration Process
+
+I used a migration instead of letting EF create the tables on its own, so the schema is versioned like code. The initial migration is `InitialCreate` (in `Infrastructure/Migrations`), generated with something like:
+
+```
+dotnet ef migrations add InitialCreate --project src/EquipmentBorrowing.Infrastructure --startup-project EquipmentBorrowing.Desktop
+```
+
+The app applies it on startup. `DbInitializer.InitializeAsync` calls `Database.MigrateAsync()`, which creates the database if it doesn't exist and applies only the pending migrations. It never drops or recreates an existing database, so the user's data survives restarts. After migrating, it seeds only if the tables are empty: 4 students (one not allowed to borrow), 5 books, and 1 active borrowing (Ana has Romeo and Juliet).
+
+## 6. Generated SQL Examples
+
+To see what EF actually sends to SQLite, I temporarily turned on `LogTo` and then removed it before the final push. Here are 2 queries it logged.
+
+**Query 1: Active Borrowings with student and equipment details (join)**
+
+LINQ:
+```csharp
+from b in context.Borrowings.AsNoTracking()
+join s in context.Students on b.StudentId equals s.Id
+join e in context.Equipment on b.EquipmentId equals e.Id
+where b.Status == BorrowingStatus.Active
+orderby b.DateBorrowed
+select new ActiveBorrowingDetails(b.Id, s.Name, e.Name, b.DateBorrowed, b.ExpectedReturnDate)
+```
+
+Generated SQL:
+```sql
+SELECT "b"."Id", "s"."Name", "e"."Name", "b"."DateBorrowed", "b"."ExpectedReturnDate"
+FROM "Borrowings" AS "b"
+INNER JOIN "Students" AS "s" ON "b"."StudentId" = "s"."Id"
+INNER JOIN "Equipment" AS "e" ON "b"."EquipmentId" = "e"."Id"
+WHERE "b"."Status" = 'Active'
+ORDER BY "b"."DateBorrowed"
+```
+
+What I noticed: EF only selected the 5 columns we put in the `select`, not whole rows. Our `Borrowing` has no navigation properties, so the explicit `join` is what makes the 2 `INNER JOIN`s. `Status` is compared to the text `'Active'` because we stored the enum as a string.
+
+![Generated SQL join](Screenshots/14-generated-sql-join.png)
+
+**Query 2: Active borrowings only (filter)**
+
+LINQ:
+```csharp
+context.Borrowings.AsNoTracking().Where(b => b.Status == BorrowingStatus.Active)
+```
+
+Generated SQL:
+```sql
+SELECT "b"."Id", "b"."DateBorrowed", "b"."EquipmentId", "b"."ExpectedReturnDate", "b"."Status", "b"."StudentId"
+FROM "Borrowings" AS "b"
+WHERE "b"."Status" = 'Active'
+```
+
+What I noticed: the `Where` became a SQL `WHERE`, so the filtering happens inside the database and not in C# memory. That's the main reason to keep queries as `IQueryable` until the `ToListAsync()` call.
+
+![Generated SQL filter](Screenshots/15-generated-sql-filter.png)
+
+**Sample SQL queries (`docs/database-queries.sql`)**
+
+I also wrote 5 plain SQL queries (retrieval, filter, join, aggregate and update) in `docs/database-queries.sql` and ran each one in DB Browser for SQLite.
+
+| Type | Screenshot |
+|---|---|
+| Retrieval | ![Retrieval](Screenshots/16-query-retrieval.png) |
+| Filter | ![Filter](Screenshots/17-query-filter.png) |
+| Join | ![Join](Screenshots/18-query-join.png) |
+| Aggregate | ![Aggregate](Screenshots/19-query-aggregate.png) |
+| Update | ![Update](Screenshots/20-query-update.png) |
+
+## 7. Persistence Demonstration
+
+To prove the data survives restarts, I ran this test with a fresh database:
+
+1. Launched the app and saw the 5 seeded books, with Romeo and Juliet unavailable. ![First launch](Screenshots/06-app-first-launch.png)
+2. Borrowed Python Programming as Ana Reyes. ![Borrow](Screenshots/07-borrow-success.png)
+3. Closed and reopened the app. Python Programming was still unavailable. ![Reopen](Screenshots/08-after-reopen-still-borrowed.png)
+4. Returned it from Active Borrowings. ![Return](Screenshots/09-return-success.png)
+5. Closed and reopened again. It showed as available. ![Reopen 2](Screenshots/10-after-reopen-still-returned.png)
+
+I also opened the `.db` file in DB Browser for SQLite to check the rows directly, and to check the tables, indexes and foreign keys.
+
+![Tables and indexes](Screenshots/04-db-tables.png)
+![Foreign keys](Screenshots/05-borrowings-foreign-keys.png)
+![Students](Screenshots/11-students-rows.png)
+![Equipment](Screenshots/12-equipment-rows.png)
+![Borrowings](Screenshots/13-borrowings-rows.png)
+
+This works because the state lives in the `.db` file and not in the app's memory. When the app closes, the objects are gone, but the rows stay. On the next launch, `MigrateAsync()` finds the database already up to date and the seed is skipped since the tables aren't empty.
+
+## 8. Architectural Reflection
+
+**1. Why did the application not need to be completely rewritten when SQLite was introduced?**
+
+Because the services and ViewModels only talk to the repository interfaces (`IStudentRepository`, `IEquipmentRepository`, `IBorrowingRepository`), never to a concrete class. So I just wrote three new EF repositories that implement the same interfaces and swapped the registration in `App.axaml.cs` to `AddPersistence()`. The one real change was adding `UpdateAsync`. Domain, Application and the Views stayed the same. I think it's like changing the engine of a jeepney without touching the seats or the steering wheel.
+
+**2. Why should the ViewModel not use DbContext directly?**
+
+The ViewModel's job is to handle UI state and commands, not to know how data is stored. If it used `DbContext`, the presentation layer would be tied to EF Core and SQLite. It would also skip the services that hold the business rules (like `IsAllowedToBorrow` and the max 3 active borrowings), so those rules could get bypassed. Testing would get harder too, since we couldn't use the in-memory repos anymore. It's like a waiter walking into the kitchen and cooking the food himself instead of passing the order.
+
+**3. What responsibility does the repository implementation now perform?**
+
+It's the translator between our C# objects and the database. Each method opens a short-lived `DbContext` from the factory, runs the LINQ query or save, and disposes the context. It decides when to use `AsNoTracking()` for read-only lists and when to keep tracking for entities that get modified. It also handles `UpdateAsync` and `SaveChangesAsync`. It doesn't contain any business rules, because those stay in the services.
+
+**4. What is the purpose of an EF Core migration?**
+
+A migration is a versioned, code-based record of a change to the database schema. Our `InitialCreate` migration builds the tables, keys, indexes and foreign keys from the model and Fluent API configs. `MigrateAsync()` applies it on startup and only runs the pending ones, so the database stays in sync with the code and the existing data isn't wiped. I think of it as Git for the database structure, since anyone who clones the repo gets the same schema.
+
+**5. Why are foreign keys important in the borrowing database?**
+
+They keep the data consistent. A borrowing can only point to a student and equipment that actually exist, so we can't end up with a borrowing for "Student #99" who isn't in the table. With `Restrict` delete behavior, we also can't delete a student or equipment that still has borrowing history. Foreign keys also make the joins reliable, like our Active Borrowings query that links the three tables.
+
+**6. Why can a read-only query benefit from AsNoTracking()?**
+
+By default, EF Core tracks every entity it loads so it can detect changes later. That costs memory and time. If we only display the data, like the equipment list, the active borrowings or the join query, nothing gets saved back, so tracking is wasted work. `AsNoTracking()` skips it, which makes the query lighter and a bit faster. I didn't use it on `GetByIdAsync` for Equipment and Borrowing because those entities get modified right after (`MarkBorrowed` and `MarkReturned`).
+
+**7. What would happen to the rest of the application if the SQLite implementation were replaced later by another database provider?**
+
+I think most of the app wouldn't notice, since Domain, Application, the ViewModels and the Views never reference SQLite. The changes would be inside Infrastructure: swap the NuGet package (for example to a PostgreSQL or SQL Server provider), change `UseSqlite(...)` to the new provider's method in `DependencyInjection.cs`, and update the connection string in `DatabasePaths`. The migrations would also need to be regenerated, because they're provider-specific. The repositories' LINQ queries should mostly work as they are, though I'd still test them since some SQL behavior can differ between providers.
+
+---
+
+# Project Status (Lab 3)
+
+| Part | Description | Status |
+|---|---|---|
+| 1 | Relational Database Design | ✅ Done |
+| 2 | EF Core and SQLite Setup | ✅ Done |
+| 3 | DbContext Responsibility | ✅ Done |
+| 4 | Repository Transition | ✅ Done |
+| 5 | Migration Process | ✅ Done |
+| 6 | Generated SQL Examples and `docs/database-queries.sql` | ✅ Done |
+| 7 | Persistence Demonstration | ✅ Done |
+| 8 | Architectural Reflection | ✅ Done |
