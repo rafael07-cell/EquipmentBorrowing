@@ -523,7 +523,7 @@ The Views, ViewModels, Application services, Domain models, and the repository i
 
 ## 2. EF Core and SQLite Setup
 
-I added two NuGet packages to the **Infrastructure** project only: `Microsoft.EntityFrameworkCore.Sqlite` (the SQLite provider) and `Microsoft.EntityFrameworkCore.Design` (needed for migrations). Domain and Application don't reference EF Core at all, so the business rules stay clean. I think this is the main point of the layered setup. If we swap SQLite for another database later, only Infrastructure changes.
+I added two NuGet packages to the **Infrastructure** project only: `Microsoft.EntityFrameworkCore.Sqlite` (the SQLite provider) and `Microsoft.EntityFrameworkCore.Design` (needed for migrations). The Design package is also referenced by the Desktop project, because `dotnet ef` needs it on the startup project. Domain and Application don't reference EF Core at all, so the business rules stay clean. I think this is the main point of the layered setup. If we swap SQLite for another database later, only Infrastructure changes.
 
 The database file is `equipmentborrowing.db`, saved in the user's local app data folder (`%LOCALAPPDATA%\EquipmentBorrowing`). I put it there instead of the repo so the `.db` file never gets pushed to GitHub, and so the app works no matter where the project is cloned.
 
@@ -541,11 +541,17 @@ The interfaces (`IStudentRepository`, `IEquipmentRepository`, `IBorrowingReposit
 
 The one interface change was adding `UpdateAsync`. In memory, the services modify objects that are shared by reference, so changes just stick. With EF Core, each repository call uses its own short-lived context, so the object comes back detached. `UpdateAsync` re-attaches it and saves the change. The in-memory repos got an empty `UpdateAsync` so they still satisfy the interface. They're still used by the ConsoleDemo and the unit tests, which is why the tests don't need a real database.
 
-About `AsNoTracking()`: I used it on read-only queries that are only for display (the equipment list, the active borrowings list, student reads, the count query and the join query), since nothing gets modified and EF doesn't need to track them. I left it off `GetByIdAsync` for Equipment and Borrowing because those entities get modified right after (`MarkBorrowed` and `MarkReturned`).
+About `AsNoTracking()`: I used it on read-only queries that are only for display (the equipment list, the active borrowings list, student reads, the count query and the join query), since nothing gets modified and EF doesn't need to track them. I left it off `GetByIdAsync` for Equipment and Borrowing because the returned entity is modified by the service and then saved through `UpdateAsync`. Each call uses its own short-lived context, so the entity is detached afterwards and `Update()` re-attaches it.
 
 ## 5. Migration Process
 
 I used a migration instead of letting EF create the tables on its own, so the schema is versioned like code. The initial migration is `InitialCreate` (in `Infrastructure/Migrations`), generated with `dotnet ef migrations add InitialCreate` using the Infrastructure project as the target and the Desktop project as the startup project.
+
+```powershell
+dotnet ef migrations add InitialCreate --project src/EquipmentBorrowing.Infrastructure --startup-project EquipmentBorrowing.Desktop --output-dir Migrations
+dotnet ef database update --project src/EquipmentBorrowing.Infrastructure --startup-project EquipmentBorrowing.Desktop
+dotnet ef migrations list --project src/EquipmentBorrowing.Infrastructure --startup-project EquipmentBorrowing.Desktop
+```
 
 The app applies it on startup. `DbInitializer.InitializeAsync` calls `Database.MigrateAsync()`, which creates the database if it doesn't exist and applies only the pending migrations. It never drops or recreates an existing database, so the user's data survives restarts.
 
@@ -562,13 +568,17 @@ After migrating, it seeds only if the tables are empty: 4 students (one not allo
 | `Equipment.AsNoTracking().OrderBy(e => e.Id)` | `EfEquipmentRepository.GetAllAsync` | List all equipment (retrieval) |
 | `Borrowings.AsNoTracking().Where(b => b.Status == Active)` | `EfBorrowingRepository.GetActiveAsync` | Active borrowings only (filter) |
 | `Borrowings.AsNoTracking().CountAsync(b => b.StudentId == id && b.Status == Active)` | `EfBorrowingRepository.CountActiveByStudentIdAsync` | Enforce the max 3 active borrowings (aggregate) |
-| `Borrowings` join `Students` join `Equipment` | `EfBorrowingQueries.GetActiveWithDetailsAsync` | Active borrowings with student and equipment names (join) |
+| `Borrowings` join `Students` join `Equipment` | `EfBorrowingQueries.GetActiveWithDetailsAsync` | Active Borrowings screen: shows student and equipment names instead of IDs (join) |
 
 ### Generated SQL examples
 
 To see what EF actually sends to SQLite, I temporarily turned on `LogTo` and then removed it before the final push. Here are 2 queries it logged.
 
 **Query 1: Active Borrowings with student and equipment details (join)**
+
+This is the query behind the Active Borrowings screen. `BorrowingsViewModel` calls `IBorrowingQueries.GetActiveWithDetailsAsync`, so the list shows names instead of IDs.
+
+![Active Borrowings with names](Screenshots/Laboratory_3_Screenshots/19-active-borrowings-names.png)
 
 LINQ:
 ```csharp
@@ -672,7 +682,7 @@ They keep the data consistent. A borrowing can only point to a student and equip
 
 **6. Why can a read-only query benefit from AsNoTracking()?**
 
-By default, EF Core tracks every entity it loads so it can detect changes later. That costs memory and time. If we only display the data, like the equipment list, the active borrowings or the join query, nothing gets saved back, so tracking is wasted work. `AsNoTracking()` skips it, which makes the query lighter and a bit faster. I didn't use it on `GetByIdAsync` for Equipment and Borrowing because those entities get modified right after (`MarkBorrowed` and `MarkReturned`).
+By default, EF Core tracks every entity it loads so it can detect changes later. That costs memory and time. If we only display the data, like the equipment list, the active borrowings or the join query, nothing gets saved back, so tracking is wasted work. `AsNoTracking()` skips it, which makes the query lighter and a bit faster. I didn't use it on `GetByIdAsync` for Equipment and Borrowing because the returned entity is modified by the service and then saved through `UpdateAsync`. Each call uses its own short-lived context, so the entity is detached afterwards and `Update()` re-attaches it.
 
 **7. What would happen to the rest of the application if the SQLite implementation were replaced later by another database provider?**
 
@@ -692,3 +702,7 @@ I think most of the app wouldn't notice, since Domain, Application, the ViewMode
 | 6 | LINQ Queries and Generated SQL | ✅ Done |
 | 7 | Persistence Demonstration | ✅ Done |
 | 8 | Architectural Reflection | ✅ Done |
+
+**Build status:** Solution builds successfully across all 6 projects (Domain, Application, Infrastructure, Tests, ConsoleDemo, Desktop).
+
+**Git history:** Incremental commits covering database design, EF Core packages, DbContext and configurations, the InitialCreate migration, repository UpdateAsync, EF repositories, seed data, DI wiring, LINQ queries and generated SQL, persistence verification and documentation.
