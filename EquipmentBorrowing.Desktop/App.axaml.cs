@@ -40,6 +40,7 @@ public partial class App : Avalonia.Application
         // Runs before any ViewModel loads data.
         Task.Run(() => Services.InitializeDatabaseAsync()).GetAwaiter().GetResult();
 
+
         if (ApplicationLifetime is IClassicDesktopStyleApplicationLifetime desktop)
         {
             desktop.MainWindow = new MainWindow

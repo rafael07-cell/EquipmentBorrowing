@@ -16,6 +16,10 @@ public static class DependencyInjection
         services.AddSingleton<IStudentRepository, EfStudentRepository>();
         services.AddSingleton<IEquipmentRepository, EfEquipmentRepository>();
         services.AddSingleton<IBorrowingRepository, EfBorrowingRepository>();
+
+        // Registers the join query for Active Borrowings
+        services.AddSingleton<IBorrowingQueries, EfBorrowingQueries>();
+
         return services;
     }
 
