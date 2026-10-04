@@ -521,7 +521,6 @@ The Views, ViewModels, Application services, Domain models, and the repository i
 - **Borrowings**: PK `Id`; FK `StudentId` → Students.Id; FK `EquipmentId` → Equipment.Id; `Status` stored as text; indexes on `StudentId`, `EquipmentId` and `Status`.
 - Foreign keys use `Restrict` delete behavior, so a student or equipment record cannot be deleted while borrowing history references it.
 
-
 ## 2. EF Core and SQLite Setup
 
 I added two NuGet packages to the **Infrastructure** project only: `Microsoft.EntityFrameworkCore.Sqlite` (the SQLite provider) and `Microsoft.EntityFrameworkCore.Design` (needed for migrations). Domain and Application don't reference EF Core at all, so the business rules stay clean. I think this is the main point of the layered setup. If we swap SQLite for another database later, only Infrastructure changes.
@@ -546,15 +545,22 @@ About `AsNoTracking()`: I used it on read-only queries that are only for display
 
 ## 5. Migration Process
 
-I used a migration instead of letting EF create the tables on its own, so the schema is versioned like code. The initial migration is `InitialCreate` (in `Infrastructure/Migrations`), generated with something like:
-
-```
-dotnet ef migrations add InitialCreate --project src/EquipmentBorrowing.Infrastructure --startup-project EquipmentBorrowing.Desktop
-```
+I used a migration instead of letting EF create the tables on its own, so the schema is versioned like code. The initial migration is `InitialCreate` (in `Infrastructure/Migrations`), generated with `dotnet ef migrations add InitialCreate` using the Infrastructure project as the target and the Desktop project as the startup project.
 
 The app applies it on startup. `DbInitializer.InitializeAsync` calls `Database.MigrateAsync()`, which creates the database if it doesn't exist and applies only the pending migrations. It never drops or recreates an existing database, so the user's data survives restarts. After migrating, it seeds only if the tables are empty: 4 students (one not allowed to borrow), 5 books, and 1 active borrowing (Ana has Romeo and Juliet).
 
-## 6. Generated SQL Examples
+## 6. LINQ Queries and Generated SQL
+
+### LINQ queries used
+
+| Query | Where | Purpose |
+|---|---|---|
+| `Equipment.AsNoTracking().OrderBy(e => e.Id)` | `EfEquipmentRepository.GetAllAsync` | List all equipment (retrieval) |
+| `Borrowings.AsNoTracking().Where(b => b.Status == Active)` | `EfBorrowingRepository.GetActiveAsync` | Active borrowings only (filter) |
+| `Borrowings.AsNoTracking().CountAsync(b => b.StudentId == id && b.Status == Active)` | `EfBorrowingRepository.CountActiveByStudentIdAsync` | Enforce the max 3 active borrowings (aggregate) |
+| `Borrowings` join `Students` join `Equipment` | `EfBorrowingQueries.GetActiveWithDetailsAsync` | Active borrowings with student and equipment names (join) |
+
+### Generated SQL examples
 
 To see what EF actually sends to SQLite, I temporarily turned on `LogTo` and then removed it before the final push. Here are 2 queries it logged.
 
@@ -602,17 +608,17 @@ What I noticed: the `Where` became a SQL `WHERE`, so the filtering happens insid
 
 ![Generated SQL filter](Screenshots/15-generated-sql-filter.png)
 
-**Sample SQL queries (`docs/database-queries.sql`)**
+### Sample SQL queries
 
-I also wrote 5 plain SQL queries (retrieval, filter, join, aggregate and update) in `docs/database-queries.sql` and ran each one in DB Browser for SQLite.
+`docs/database-queries.sql` has 5 hand-written queries (retrieval, filter, join, aggregate and update). I ran each one in DB Browser for SQLite on the app's database.
 
-| Type | Screenshot |
+| Query | Screenshot |
 |---|---|
-| Retrieval | ![Retrieval](Screenshots/16-query-retrieval.png) |
-| Filter | ![Filter](Screenshots/17-query-filter.png) |
-| Join | ![Join](Screenshots/18-query-join.png) |
-| Aggregate | ![Aggregate](Screenshots/19-query-aggregate.png) |
-| Update | ![Update](Screenshots/20-query-update.png) |
+| Retrieval: all equipment | ![Retrieval](Screenshots/16-query-retrieval.png) |
+| Filter: students allowed to borrow | ![Filter](Screenshots/17-query-filter.png) |
+| Join: active borrowings with details | ![Join](Screenshots/18-query-join.png) |
+| Aggregate: borrowings per student | ![Aggregate](Screenshots/19-query-aggregate.png) |
+| Update: block a student from borrowing | ![Update](Screenshots/20-query-update.png) |
 
 ## 7. Persistence Demonstration
 
@@ -624,12 +630,16 @@ To prove the data survives restarts, I ran this test with a fresh database:
 4. Returned it from Active Borrowings. ![Return](Screenshots/09-return-success.png)
 5. Closed and reopened again. It showed as available. ![Reopen 2](Screenshots/10-after-reopen-still-returned.png)
 
-I also opened the `.db` file in DB Browser for SQLite to check the rows directly, and to check the tables, indexes and foreign keys.
+I also opened the `.db` file in DB Browser for SQLite to check the tables and rows directly.
 
 ![Tables and indexes](Screenshots/04-db-tables.png)
-![Foreign keys](Screenshots/05-borrowings-foreign-keys.png)
+
+![Borrowings foreign keys](Screenshots/05-borrowings-foreign-keys.png)
+
 ![Students](Screenshots/11-students-rows.png)
+
 ![Equipment](Screenshots/12-equipment-rows.png)
+
 ![Borrowings](Screenshots/13-borrowings-rows.png)
 
 This works because the state lives in the `.db` file and not in the app's memory. When the app closes, the objects are gone, but the rows stay. On the next launch, `MigrateAsync()` finds the database already up to date and the seed is skipped since the tables aren't empty.
@@ -675,6 +685,6 @@ I think most of the app wouldn't notice, since Domain, Application, the ViewMode
 | 3 | DbContext Responsibility | ✅ Done |
 | 4 | Repository Transition | ✅ Done |
 | 5 | Migration Process | ✅ Done |
-| 6 | Generated SQL Examples and `docs/database-queries.sql` | ✅ Done |
+| 6 | LINQ Queries and Generated SQL | ✅ Done |
 | 7 | Persistence Demonstration | ✅ Done |
 | 8 | Architectural Reflection | ✅ Done |
